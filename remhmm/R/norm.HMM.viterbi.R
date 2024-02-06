@@ -1,4 +1,4 @@
-norm.HMM.viterbi<-function(x,Result,m)
+norm.HMM.viterbi<-function(x,Result,m,q)
 {
   n              <- nrow(x)
   xi             <- matrix(0,n,m)
