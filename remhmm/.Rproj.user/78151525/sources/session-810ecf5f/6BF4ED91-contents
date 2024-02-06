@@ -1,0 +1,198 @@
+#liberaries
+```{r}
+devtools::install_github("Mbehbahani/DigiPy/remhmm")
+library(remhmm)
+
+library(REHdynamics)
+library(remstats)
+library(remstimate)
+library("nloptr")
+```
+
+#Parameter settings for Scenario1
+```{r}
+m=2 #Number States
+q=1 #Number of variables (In REM it means the Number of statistics)
+num_obs <- 100
+N_relations<-200 #number of relational events in each state 
+
+# Hidden State
+transition_probs <- matrix(c(0.2,0.8,0.8,0.2), nrow = 2,byrow=TRUE)
+initial_probs <- c(0.1, 0.9)
+
+# Initial Values for Optimization
+gamma0=matrix(c(0.2,0.8,0.8,0.2), nrow = 2,byrow=TRUE)
+mean0=c(0.1,0.5) 
+sd0=c(0.3,0.4)
+delta0=c(0.3, 0.7)
+
+
+vc= matrices_to_vector(gamma0, mean0, sd0, delta0)
+
+Lgamma <- matrix(c(0,0,0,0), nrow = 2,byrow=TRUE)
+Lmean0 <- c(-Inf,-Inf)
+Lsd0 <- c(0,0)
+Ldelta0 <- c(0, 0)
+Lvc <- matrices_to_vector(Lgamma, Lmean0, Lsd0, Ldelta0)
+
+Ugamma <- matrix(c(1,1,1,1), nrow = 2,byrow=TRUE)
+Umean0 <- matrix(c(Inf,Inf))
+Usd0 <- matrix(c(Inf,Inf))
+Udelta0 <- c(1, 1)
+Uvc <- matrices_to_vector(Ugamma, Umean0, Usd0, Udelta0)
+
+
+lower_bounds <- Lvc
+upper_bounds <- Uvc
+
+```
+
+# generate REH data using "generate_rem" function
+```{r}
+## code to prepare `covar` dataset 
+# Generate the actors and their exogenous information for the 
+# generated datasets
+
+set.seed(27613)
+covar <- data.frame(id = 1:10, time = 0, z = rnorm(n = 10))
+colnames(covar)[colnames(covar) == "id"] <- "name"
+# usethis::use_data(covar,overwrite = TRUE) 
+
+## code to prepare `param` dataset 
+# Normal variable (will be add)
+param1 <- list(
+    "baseline" = -4, 
+    "inertia" = 0.1)
+
+param2 <- list(
+    "baseline" = -4, 
+    "inertia" = 0.5)
+```
+
+
+
+
+# REM data (MainTest(Event effect).Rmd)
+```{r}
+# Generate REM of the current state
+#num_var<-1 
+#q<-num_var
+#initial_probs
+#transition_probs
+
+hidden_states<-numeric(num_obs)
+for (t in 1:num_obs) {
+    if (t == 1) {
+    # Initial state
+    hidden_states[t] <- sample(1:m, 1, prob = initial_probs)
+    } else {
+    # Transition to the next state
+      hidden_states[t] <- sample(1:m, 1, prob = transition_probs[hidden_states[t - 1], ])
+    }
+}
+```
+
+# preparation to generate datasets
+```{r}
+# Model
+formula <- ~ 1+ inertia(scaling = "std")
+## code to prepare `constant` dataset
+# Generate data
+constant <- list()
+
+  t <- 0
+  dummy <- data.frame(time = 1, actor1 = 1, actor2 = 2)
+  rehOut <-remify::remify(edgelist = dummy,model = "tie",actors = covar$name,
+                          directed = TRUE,origin = 0)
+  out <- remstats(reh = rehOut, tie_effects = formula, attr_actors  = covar)
+  
+  # rehOut <- remify::reh(dummy, actors = covar$id, model = "tie")
+  # remstatsOut <- remstats::tomstats(edgelist = rehOut, effects = formula)
+  riskset<-attributes(out)$riskset
+  adj <- matrix(0, 1, ncol = nrow(riskset))
+
+  set.seed(27613)
+  # Generate according to the process:
+  
+  Dhidden_states<-hidden_states
+  
+  constant[[1]] <- generate_rem(formula, param1,param2,covar,N_relations,num_obs,Dhidden_states)
+  Sequence <-constant[[1]]
+  
+```
+
+# windows defenition
+```{r}
+##  M<-200 specify M (N_relations at the beginning)
+windows <- data.frame(
+  start = seq(1, by = N_relations, length.out = num_obs),
+  stop = seq(N_relations, by = N_relations, length.out = num_obs)
+)
+
+```
+
+
+# for calculating the effects. of the statistics  
+# it based on the number of statistics. It should be modified
+```{r}
+observations <- matrix(NA, nrow = num_obs, ncol = q)
+baseline <- matrix(NA, nrow = num_obs, ncol = 1)
+stats <- ~ 1+ inertia(scaling = "std")
+reh_tie <- remify::remify(edgelist = Sequence, model = "tie",actors = covar$name,directed = TRUE,origin = 0)
+coefficients_list <- numeric()
+
+
+for(i in 1:num_obs) {  #nrow(windows) #num_obs
+    out <- remstats(reh = reh_tie, tie_effects = stats,memory = "full",start = windows$start[i], stop = windows$stop[i], memory_value=400 )
+    
+    fit <- remstimate::remstimate(reh = reh_tie, stats = out,method = "MLE")
+    
+    baseline<-as.numeric(fit$coefficients[1])
+    observations[i,1]<- as.numeric(fit$coefficients[2])
+    #observations[i,2]<-as.numeric(fit$coefficients[3])
+
+    print(i)
+    summary(fit)
+}
+
+st=hidden_states
+x1=observations
+x=x1
+#hidden_states
+#observations
+```
+
+
+
+```{r}
+norm.HMM.mllk(vc, x, m=2)
+```
+
+
+```{r}
+Result<-norm.HMM.mle(x, m,q, vc,lower_bounds, upper_bounds)
+Result
+Fstates<-norm.HMM.viterbi(x,Result,m)
+```
+
+```{r}
+sum(hidden_states==Fstates)
+```
+
+```{r}
+hidden_states
+x
+```
+
+```{r}
+cbind(x,hidden_states,Fstates)
+```
+
+
+
+
+
+
+
+
+

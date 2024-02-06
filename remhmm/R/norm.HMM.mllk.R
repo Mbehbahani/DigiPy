@@ -1,5 +1,5 @@
-norm.HMM.mllk <- function(vc, x, m) {
-  matrices <- vector_to_matrices(vc, m = m,q=1)
+norm.HMM.mllk <- function(vc, x, m,q) {
+  matrices <- vector_to_matrices(vc, m = m,q)
 
   gamma0<-matrices$gamma
   mean<-matrices$mean
@@ -7,12 +7,12 @@ norm.HMM.mllk <- function(vc, x, m) {
   delta<-matrices$delta
   n <- length(x[,1])
 
-  n_dep<-1
+  n_dep<-q
   inp <- rep(list(NULL), n_dep)
 
-  for(q in 1:n_dep){
-    inp[[q]] <- outer(x[,q], Y = mean[q,], FUN = stats::dnorm,
-                      sd = rep((sd[q,]), each = dim(x)[1]))
+  for(i in 1:n_dep){
+    inp[[i]] <- outer(x[,i], Y = mean[i,], FUN = stats::dnorm,
+                      sd = rep((sd[i,]), each = dim(x)[1]))
   }
 
   allprobs <- Reduce("*", inp)

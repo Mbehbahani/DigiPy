@@ -1,6 +1,5 @@
-norm.HMM.mle <- function(x, m,q, vc,lower_bounds, upper_bounds)
-  {
-  opt_problem_nloptr <- nloptr(x0 = vc,eval_f = norm.HMM.mllk,lb = lower_bounds,ub = upper_bounds,opts = list(algorithm = "NLOPT_LN_NELDERMEAD"),x=x1,m=m)
+norm.HMM.mle <- function(x, m,q, vc,lower_bounds, upper_bounds,...){
+  opt_problem_nloptr <- nloptr(x0 = vc,eval_f = norm.HMM.mllk,lb = lower_bounds,ub = upper_bounds,opts = list(algorithm = "NLOPT_LN_NELDERMEAD"),x=x1,m=m,q=q)
   # Run the optimization
   opt_problem_nloptr
   Result<-vector_to_matrices(opt_problem_nloptr$solution,m,q)
