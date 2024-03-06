@@ -5,7 +5,7 @@ norm.HMM.mle <- function(x, m,q, vc,lower_bounds, upper_bounds,...){
   Result<-vector_to_matrices(opt_problem_nloptr$solution,m,q)
   return(Result)
 
-  mllk <- norm.HMM.mllk(vc, x=x, m)
+  mllk <- norm.HMM.mllk(vc, x=x, m,q)
   np <- 2*m
   AIC <- 2 * (mllk + np)
   n <- nrow(x1)

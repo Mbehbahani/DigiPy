@@ -1,6 +1,6 @@
-# This function is for m=2(2 states), it should be as a input
-generate_rem <-function (formula, param1,param2,covar,M,NObs,hidden_states)
+generate_rem <-function (formula, AllParam,covar,M,NObs,hidden_states)
 {
+  AllParam
   t <- 0
   dummy <- data.frame(time = 1, actor1 = 1, actor2 = 2)
   rehOut <-remify::remify(edgelist = dummy,model = "tie",actors = covar$name,
@@ -12,8 +12,7 @@ generate_rem <-function (formula, param1,param2,covar,M,NObs,hidden_states)
 
 
   for (j in 1:NObs){
-    param=param1
-    if(hidden_states[j]==2){param=param2}
+    param=AllParam[hidden_states[j]]
 
     for (i in 1:M) {
 
